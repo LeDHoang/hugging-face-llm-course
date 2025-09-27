@@ -1,4 +1,4 @@
-# from huggingface_hub import InferenceClient
+from huggingface_hub import InferenceClient
 # TGI is easy to install and use, with deep integration into the Hugging Face ecosystem.
 
 # First, launch the TGI server using Docker:

@@ -22,33 +22,66 @@
 #     --port 8080 \
 #     -c 4096 \
 #     --n-gpu-layers 0  # Set to a higher number to use GPU
-# Interact with the server using Hugging Face’s InferenceClient:
-from huggingface_hub import InferenceClient
+# Let's test with direct HTTP requests first
+import requests
+import json
 
-# Initialize client pointing to llama.cpp server
-client = InferenceClient(
-    model="http://localhost:8080/v1",  # URL to the llama.cpp server
-    token="sk-no-key-required",  # llama.cpp server requires this placeholder
-)
+# Test basic connectivity
+try:
+    response = requests.get("http://localhost:8080/health", timeout=5)
+    print(f"Server health: {response.status_code}")
+    if response.status_code == 200:
+        print(f"Response: {response.json()}")
+except Exception as e:
+    print(f"Health check failed: {e}")
 
-# Text generation
-response = client.text_generation(
-    "Tell me a story",
-    max_new_tokens=100,
-    temperature=0.7,
-    top_p=0.95,
-    details=True,
-)
-print(response.generated_text)
+# Test models endpoint
+try:
+    response = requests.get("http://localhost:8080/v1/models", timeout=5)
+    print(f"Models endpoint: {response.status_code}")
+    if response.status_code == 200:
+        models = response.json()
+        print(f"Available models: {[model.get('id', 'unknown') for model in models.get('data', [])]}")
+except Exception as e:
+    print(f"Models check failed: {e}")
 
-# For chat format
-response = client.chat_completion(
-    messages=[
-        {"role": "system", "content": "You are a helpful assistant."},
-        {"role": "user", "content": "Tell me a story"},
-    ],
-    max_tokens=100,
-    temperature=0.7,
-    top_p=0.95,
-)
-print(response.choices[0].message.content)
+# Test completion endpoint
+try:
+    payload = {
+        "prompt": "Tell me a story",
+        "max_tokens": 50,
+        "temperature": 0.7
+    }
+    response = requests.post("http://localhost:8080/v1/completions",
+                           json=payload, timeout=30)
+    print(f"Completion endpoint: {response.status_code}")
+    if response.status_code == 200:
+        result = response.json()
+        print(f"Generated text: {result['choices'][0]['text']}")
+    else:
+        print(f"Error response: {response.text}")
+except Exception as e:
+    print(f"Completion test failed: {e}")
+
+# Test chat completion endpoint
+try:
+    chat_payload = {
+        "messages": [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Tell me a short story"}
+        ],
+        "max_tokens": 50,
+        "temperature": 0.7
+    }
+    response = requests.post("http://localhost:8080/v1/chat/completions",
+                           json=chat_payload, timeout=30)
+    print(f"Chat completion endpoint: {response.status_code}")
+    if response.status_code == 200:
+        result = response.json()
+        print(f"Chat response: {result['choices'][0]['message']['content']}")
+    else:
+        print(f"Error response: {response.text}")
+except Exception as e:
+    print(f"Chat completion test failed: {e}")
+
+print("\nLlama.cpp server test completed!")
